@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast 聽力辨識挑戰</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .audio-section {
+            margin-bottom: 2rem;
+        }
+
+        .play-btn {
+            background: var(--primary);
+            border: none;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .play-btn:hover { transform: scale(1.05); opacity: 0.9; }
+        .play-btn:active { transform: scale(0.95); }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .option {
+            background: #fff;
+            border: 2px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text);
+        }
+
+        .option:hover {
+            border-color: var(--primary);
+            background: #f5f3ff;
+        }
+
+        .option.correct {
+            background: #10b981 !important;
+            border-color: #10b981 !important;
+            color: white;
+        }
+
+        .option.wrong {
+            background: #ef4444 !important;
+            border-color: #ef4444 !important;
+            color: white;
+        }
+
+        .score-info {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>聽聲音，選單字</h2>
+    <div class="audio-section">
+        <button class="play-btn" onclick="playWord()">
+            <svg viewBox="0 0 24 24" width="40" height="40" fill="white">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+        </button>
+        <p style="margin-top: 10px;">點擊上方按鈕播放</p>
+    </div>
+
+    <div class="options-grid" id="options"></div>
+
+    <div class="score-info">
+        目前進度: <span id="progress">0</span> / 10
+    </div>
+</div>
+
+<script>
+    const allWords = ["episode", "host", "special", "guest", "choose", "chose", "industry", "inviting", "favorite", "fun fact"];
+    let quizPool = [...allWords];
+    let currentWord = "";
+    let canClick = true;
+
+    function initQuiz() {
+        if (quizPool.length === 0) {
+            document.querySelector('.container').innerHTML = `
+                <h1 style="color:#10b981">🎉 挑戰完成！</h1>
+                <p>你已辨識完所有 Podcast 關鍵字</p>
+                <button onclick="location.reload()" style="padding:10px 20px; border-radius:10px; border:none; background:#6366f1; color:white; cursor:pointer;">重新開始</button>
+            `;
+            return;
+        }
+
+        // 隨機選一個目標字
+        const index = Math.floor(Math.random() * quizPool.length);
+        currentWord = quizPool[index];
+        
+        // 準備選項 (目標字 + 3 個隨機字)
+        let options = [currentWord];
+        let others = allWords.filter(w => w !== currentWord);
+        others.sort(() => Math.random() - 0.5);
+        options.push(...others.slice(0, 3));
+        options.sort(() => Math.random() - 0.5);
+
+        // 渲染按鈕
+        const optionsGrid = document.getElementById('options');
+        optionsGrid.innerHTML = '';
+        options.forEach(opt => {
+            const btn = document.createElement('div');
+            btn.className = 'option';
+            btn.innerText = opt;
+            btn.onclick = () => checkAnswer(opt, btn);
+            optionsGrid.appendChild(btn);
+        });
+
+        playWord();
+        canClick = true;
+    }
+
+    function playWord() {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(currentWord);
+        msg.lang = 'en-US';
+        msg.rate = 0.9;
+        window.speechSynthesis.speak(msg);
+    }
+
+    function checkAnswer(selected, element) {
+        if (!canClick) return;
+        canClick = false;
+
+        if (selected === currentWord) {
+            element.classList.add('correct');
+            quizPool = quizPool.filter(w => w !== currentWord);
+            document.getElementById('progress').innerText = allWords.length - quizPool.length;
+            setTimeout(initQuiz, 1000);
+        } else {
+            element.classList.add('wrong');
+            setTimeout(() => {
+                element.classList.remove('wrong');
+                canClick = true;
+            }, 500);
+        }
+    }
+
+    // 啟動測驗
+    initQuiz();
+</script>
+
+</body>
+</html>
